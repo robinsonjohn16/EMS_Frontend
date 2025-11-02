@@ -314,14 +314,14 @@ const Organizations = () => {
           </p>
         </div>
         <div className="mt-4 sm:mt-0 flex items-center space-x-3">
-          <Button variant="outline" size="sm">
+          {/* <Button variant="outline" size="sm">
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
           <Button variant="outline" size="sm">
             <Upload className="mr-2 h-4 w-4" />
             Import
-          </Button>
+          </Button> */}
           <Link to="/dashboard/organizations/create">
             <Button>
               <Plus className="mr-2 h-4 w-4" />

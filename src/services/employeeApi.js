@@ -91,23 +91,51 @@ export const employeeDetailsApi = {
 
   // Submit employee fields (for employees to fill their own data)
   submitEmployeeFields: async (fieldData) => {
-    // Ensure data has the required format with categoryName and fields
-    if (!fieldData.categoryName) {
-      console.error('Missing categoryName in submitEmployeeFields');
+    // Support both JSON and multipart submissions
+    const isFormData = typeof FormData !== 'undefined' && fieldData instanceof FormData;
+
+    // Ensure JSON payload has required structure
+    if (!isFormData) {
+      if (!fieldData.categoryName) {
+        console.error('Missing categoryName in submitEmployeeFields');
+      }
+      const payload = {
+        categoryName: fieldData.categoryName,
+        fields: fieldData.fields || {}
+      };
+      const response = await api.post('/subdomain/employees/submit-fields', payload);
+      return response.data;
     }
-    
-    const payload = {
-      categoryName: fieldData.categoryName,
-      fields: fieldData.fields || {}
-    };
-    
-    const response = await api.post('/subdomain/employees/submit-fields', payload);
+
+    // Multipart submission
+    const response = await api.post('/subdomain/employees/submit-fields', fieldData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
   },
 
   // Update employee fields (for employees to update their own data)
   updateEmployeeFields: async (fieldData) => {
-    const response = await api.post('/subdomain/employees/submit-fields', fieldData);
+    const isFormData = typeof FormData !== 'undefined' && fieldData instanceof FormData;
+    const response = await api.post(
+      '/subdomain/employees/submit-fields',
+      fieldData,
+      isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+    );
+    return response.data;
+  },
+
+  // Upload files for a specific field
+  uploadFieldFiles: async (employeeId, categoryName, fieldName, files) => {
+    const formData = new FormData();
+    (Array.isArray(files) ? files : [files]).forEach((f) => {
+      if (f) formData.append('files', f);
+    });
+    const response = await api.post(
+      `/subdomain/employees/${employeeId}/upload/${encodeURIComponent(categoryName)}/${encodeURIComponent(fieldName)}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
     return response.data;
   },
 
@@ -141,6 +169,24 @@ export const employeeDetailsApi = {
   // Get pending approvals for HR
   getPendingApprovals: async () => {
     const response = await api.get('/subdomain/employees/pending-approvals');
+    return response.data;
+  },
+
+  // Request unlock of fields (employee)
+  requestUnlockFields: async (employeeId, reason = '') => {
+    const response = await api.post(`/subdomain/employees/${employeeId}/request-unlock`, { reason });
+    return response.data;
+  },
+
+  // Review unlock request (HR/Manager)
+  reviewUnlockRequest: async (employeeId, action, comments = '') => {
+    const response = await api.post(`/subdomain/employees/${employeeId}/unlock-review`, { action, comments });
+    return response.data;
+  },
+
+  // Get pending unlock requests (HR/Manager)
+  getPendingUnlockRequests: async () => {
+    const response = await api.get('/subdomain/employees/pending-unlock-requests');
     return response.data;
   }
 };

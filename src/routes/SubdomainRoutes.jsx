@@ -19,7 +19,14 @@ import WorkCalendar from '../pages/subdomain/WorkCalendar';
 import ApplyLeave from '../pages/subdomain/ApplyLeave';
 import HRLeaveApproval from '../pages/subdomain/HRLeaveApproval';
 import HRAttendanceMarking from '../pages/subdomain/HRAttendanceMarking';
+import PayrollDashboard from '../pages/subdomain/PayrollDashboard';
+import PayrollCompensation from '../pages/subdomain/PayrollCompensation';
+import PayrollDeductionRules from '../pages/subdomain/PayrollDeductionRules';
+import PayrollSalarySlip from '../pages/subdomain/PayrollSalarySlip';
+import OrganizationSettings from '../pages/subdomain/OrganizationSettings';
 import Chat from '../pages/subdomain/Chat';
+import SocketProvider from '../contexts/SocketContext';
+
 
 // Protected route component
 let ProtectedRoute = ({ children }) => {
@@ -77,13 +84,15 @@ const SubdomainRoutes = () => {
   }, [dispatch, isInitialized]);
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route element={
-        <ProtectedRoute>
-          <TenantDashboardLayout />
-        </ProtectedRoute>
-      }>
+    <ErrorBoundary>
+      <SocketProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route element={
+            <ProtectedRoute>
+              <TenantDashboardLayout />
+            </ProtectedRoute>
+          }>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="profile" element={<Profile />} />
         
@@ -146,16 +155,47 @@ const SubdomainRoutes = () => {
             <HRLeaveApproval />
           </HRProtectedRoute>
         } />
+
+        {/* Payroll routes */}
+        <Route path="payroll" element={
+          <HRProtectedRoute>
+            <PayrollDashboard />
+          </HRProtectedRoute>
+        } />
+        <Route path="payroll/compensation" element={
+          <HRProtectedRoute>
+            <PayrollCompensation />
+          </HRProtectedRoute>
+        } />
+        <Route path="payroll/deduction-rules" element={
+          <HRProtectedRoute>
+            <PayrollDeductionRules />
+          </HRProtectedRoute>
+        } />
+        <Route path="payroll/slips" element={
+          <HRProtectedRoute>
+            <PayrollSalarySlip />
+          </HRProtectedRoute>
+        } />
+        <Route path="organization-settings" element={
+          <HRProtectedRoute>
+            <OrganizationSettings />
+          </HRProtectedRoute>
+        } />
+
         <Route path="work-calendar" element={<WorkCalendar />} />
         <Route path="apply-leave" element={<ApplyLeave />} />
         <Route path="chat" element={<Chat />} />
         
+
         <Route path="reports" element={<div>Reports Page Coming Soon</div>} />
         <Route path="settings" element={<div>Settings Page Coming Soon</div>} />
         <Route path="notifications" element={<div>Notifications Page Coming Soon</div>} />
       </Route>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+      </SocketProvider>
+    </ErrorBoundary>
   );
 };
 

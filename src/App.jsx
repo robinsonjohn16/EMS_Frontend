@@ -16,6 +16,12 @@ import ProtectedRoute from './components/ProtectedRoute';
 import SubdomainRoutes from './routes/SubdomainRoutes';
 import { fetchUserProfile } from './store/slices/authSlice';
 import {Landing} from './pages/Landing';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import Features from './pages/Features';
+import About from './pages/About';
+import Contact from './pages/Contact';
+import Pricing from './pages/Pricing';
 function App() {
   const dispatch = useDispatch();
   const { token, isAuthenticated, isLoading } = useSelector((state) => state.auth);
@@ -24,6 +30,8 @@ function App() {
   const detectSubdomain = () => {
     const hostname = window.location.hostname;
     const parts = hostname.split('.');
+    const baseLabel = import.meta.env.VITE_APP_BASE_SUBDOMAIN || 'app';
+    const mainHost = (import.meta.env.VITE_MAIN_APP_HOST || '').toLowerCase();
 
     // Dev: allow ?subdomain=demo or localStorage override
     const urlParams = new URLSearchParams(window.location.search);
@@ -32,9 +40,19 @@ function App() {
     if (paramSub || devSub) return true;
 
     if (hostname.includes('localhost')) {
-      return parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost';
+      return parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost' && parts[0] !== baseLabel;
     }
-    return parts.length > 2 && parts[0] !== 'www';
+
+    // If main host is configured, drive behavior from it
+    if (mainHost) {
+      const hn = hostname.toLowerCase();
+      if (hn === mainHost) return false; // exact main host -> main app
+      if (hn.endsWith(`.${mainHost}`)) return true; // tenant.mainHost -> tenant app
+      // Otherwise, fall back to heuristic
+    }
+
+    // Treat as tenant only if left-most label is not reserved or the base app label
+    return parts.length > 2 && parts[0] !== 'www' && parts[0] !== baseLabel;
   };
   const [isSubdomain] = useState(() => detectSubdomain());
 
@@ -58,7 +76,7 @@ function App() {
       <>
         <SubdomainRoutes />
         {/* <Toaster position="top-right" /> */}
-        <Toaster position="top-center" />
+        <Toaster position="top-center"  richColors />
       </>
     );
   }
@@ -67,22 +85,27 @@ function App() {
     <>
       <Routes>
         {/* Public routes */}
+        <Route path="/" element={<Landing />} />
         <Route 
           path="/login" 
           element={
             isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />
           } 
         />
-        <Route
-        path='/'
-        element={<Landing />}
-        ></Route>
         <Route 
           path="/register" 
           element={
             isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />
           } 
         />
+        
+        {/* Public information pages */}
+        {/* <Route path="/features" element={<Features />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/pricing" element={<Pricing />} /> */}
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
         
         {/* Protected routes */}
         <Route
@@ -100,20 +123,12 @@ function App() {
           <Route path="organizations/:id/edit" element={<EditOrganization />} />
           <Route path="organizations/:organizationId/users" element={<OrganizationUsers />} />
         </Route>
-
-        {/* Default redirect */}
-        <Route 
-          path="/" 
-          element={
-            <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-          } 
-        />
-        
+     
         {/* Catch all route */}
         <Route 
           path="*" 
           element={
-            <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
+            <Navigate to="/" replace />
           } 
         />
       </Routes>

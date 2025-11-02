@@ -12,7 +12,7 @@ export const loginUser = createAsyncThunk(
       // For admin authentication, tokens are stored in httpOnly cookies
       // We only store user data in localStorage for state management
       localStorage.setItem('user', JSON.stringify(user));
-      
+      localStorage.setItem('token', accessToken);
       // Return data for Redux state (token will be handled by cookies)
       return { accessToken, user };
     } catch (error) {

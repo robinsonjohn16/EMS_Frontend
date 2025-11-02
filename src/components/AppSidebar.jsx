@@ -16,9 +16,10 @@ import {
   Calendar,
   Mail,
   Shield,
-  Bell
+  Bell,
+  ChevronsUpDown,
 } from 'lucide-react';
-
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Sidebar,
   SidebarContent,
@@ -36,6 +37,7 @@ import {
   SidebarMenuSubItem,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
+import { DropdownMenu, DropdownMenuContent,DropdownMenuLabel,DropdownMenuSeparator,DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +48,7 @@ const AppSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const isMobile = useIsMobile()
   
   const { user } = useSelector((state) => state.auth);
   const { organizations, loading } = useSelector((state) => state.organizations);
@@ -75,16 +78,16 @@ const AppSidebar = () => {
       icon: LayoutDashboard,
       url: '/dashboard',
     },
-    {
-      title: 'Users',
-      icon: Users,
-      url: '/dashboard/users',
-    },
-    {
-      title: 'Settings',
-      icon: Settings,
-      url: '/dashboard/settings',
-    },
+    // {
+    //   title: 'Users',
+    //   icon: Users,
+    //   url: '/dashboard/users',
+    // },
+    // {
+    //   title: 'Settings',
+    //   icon: Settings,
+    //   url: '/dashboard/settings',
+    // },
   ];
 
   const organizationNavigation = [
@@ -149,7 +152,7 @@ const AppSidebar = () => {
             <Building2 className="size-4" />
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">EMS Pro</span>
+            <span className="truncate font-semibold">SUPER ADMIN</span>
             <span className="truncate text-xs text-muted-foreground">
               Enterprise Management
             </span>
@@ -204,7 +207,7 @@ const AppSidebar = () => {
               ))}
               
               {/* Organization Search */}
-              <SidebarMenuItem>
+              {/* <SidebarMenuItem>
                 <div className="px-2 py-1">
                   <SidebarInput
                     placeholder="Search organizations..."
@@ -212,7 +215,7 @@ const AppSidebar = () => {
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-              </SidebarMenuItem>
+              </SidebarMenuItem> */}
 
               {/* Organization List */}
               {/* {filteredOrganizations.length > 0 && (
@@ -252,10 +255,10 @@ const AppSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarSeparator />
+        {/* <SidebarSeparator /> */}
 
         {/* Reports */}
-        <SidebarGroup>
+        {/* <SidebarGroup>
           <SidebarGroupLabel>Reports</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -275,12 +278,12 @@ const AppSidebar = () => {
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
+        </SidebarGroup> */}
 
-        <SidebarSeparator />
+        {/* <SidebarSeparator /> */}
 
         {/* Administration */}
-        {user?.role === 'super_admin' && (
+        {/* {user?.role === 'super_admin' && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -302,11 +305,11 @@ const AppSidebar = () => {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        )}
+        )} */}
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarMenu>
+        {/* <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center gap-2 px-2 py-2">
               <Avatar className="h-8 w-8">
@@ -331,6 +334,52 @@ const AppSidebar = () => {
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
+          </SidebarMenuItem>
+        </SidebarMenu> */}
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                >
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarImage src={user.avatar} alt={user.username} />
+                    <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">{user.username}</span>
+                    <span className="truncate text-xs">{user.email}</span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                side={isMobile ? "bottom" : "right"}
+                align="end"
+                sideOffset={4}
+              >
+                <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                    <Avatar className="h-8 w-8 rounded-lg">
+                      <AvatarImage src={user.avatar} alt={user.username} />
+                      <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                    </Avatar>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-medium">{user.username}</span>
+                      <span className="truncate text-xs">{user.email}</span>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

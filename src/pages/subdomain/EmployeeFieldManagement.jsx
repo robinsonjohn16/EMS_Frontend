@@ -2,74 +2,66 @@ import React, { useEffect, useState } from 'react';
 import { employeeFieldApi } from '../../services/employeeApi';
 import CustomFieldForm from '../../components/employee/CustomFieldForm';
 import FieldCategoryForm from '../../components/employee/FieldCategoryForm';
+import FieldBuilderDialog from '../../components/employee/FieldBuilderDialog';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
+import { Pencil, Trash2, Plus, Wrench } from 'lucide-react';
 
 const EmployeeFieldManagement = () => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  // Remove standalone forms; consolidate into builder
   const [showFieldForm, setShowFieldForm] = useState(false);
   const [editingField, setEditingField] = useState(null);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [showBuilder, setShowBuilder] = useState(false);
+  const [builderCategory, setBuilderCategory] = useState(null);
+  const [builderIntent, setBuilderIntent] = useState('edit');
+
+  const refreshCategories = async () => {
+    try {
+      const res = await employeeFieldApi.getFieldCategories();
+      const fetchedCategories = (res && res.data && res.data.categories)
+        || (res && res.categories)
+        || (Array.isArray(res) ? res : []);
+      setCategories(fetchedCategories);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to load field categories');
+    }
+  };
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await employeeFieldApi.getFieldCategories();
-        const fetchedCategories = (res && res.data && res.data.categories)
-          || (res && res.categories)
-          || (Array.isArray(res) ? res : []);
-        setCategories(fetchedCategories);
-      } catch (error) {
-        toast.error('Failed to load field categories');
-      }
-    };
-    fetchCategories();
+    refreshCategories();
   }, []);
 
+  const openBuilder = (category, intent = 'edit') => {
+    setBuilderCategory(category);
+    setBuilderIntent(intent);
+    setShowBuilder(true);
+  };
+
+  // Redirect actions to builder popup
   const handleAddCategory = () => {
     setEditingCategory(null);
+    // For adding new category, still use existing form for now or future builder support
     setShowCategoryForm(true);
   };
 
   const handleEditCategory = (category) => {
-    setEditingCategory(category);
-    setShowCategoryForm(true);
+    openBuilder(category, 'edit');
   };
 
-  const handleDeleteCategory = async (categoryId) => {
-    try {
-      await employeeFieldApi.deleteFieldCategory(categoryId);
-      setCategories(categories.filter(cat => cat._id !== categoryId));
-      toast.success('Category deleted successfully');
-    } catch (error) {
-      toast.error('Failed to delete category');
-    }
-  };
-
-  const handleSubmitCategory = async (data, categoryId) => {
-    try {
-      const res = categoryId
-        ? await employeeFieldApi.updateFieldCategory(categoryId, data)
-        : await employeeFieldApi.createFieldCategory(data);
-      const updatedCategory = res.data || res;
-      
-      if (categoryId) {
-        setCategories(categories.map(cat => cat._id === categoryId ? updatedCategory : cat));
-      } else {
-        setCategories([...categories, updatedCategory]);
-      }
-      setShowCategoryForm(false);
-      toast.success(`Category ${categoryId ? 'updated' : 'created'} successfully`);
-    } catch (error) {
-      toast.error(error.message || `Failed to ${categoryId ? 'update' : 'create'} category`);
-    }
+  const handleDeleteCategory = async (categoryIdOrObj) => {
+    const category = typeof categoryIdOrObj === 'object' ? categoryIdOrObj : categories.find(c => c._id === categoryIdOrObj);
+    if (!category) return;
+    openBuilder(category, 'delete');
   };
 
   const handleAddField = (category) => {
-    setSelectedCategory(category);
-    setEditingField(null);
-    setShowFieldForm(true);
+    openBuilder(category, 'addField');
   };
 
   const handleEditField = (category, field) => {
@@ -79,105 +71,62 @@ const EmployeeFieldManagement = () => {
   };
 
   const handleDeleteField = async (categoryId, fieldId) => {
-    try {
-      await employeeFieldApi.deleteField(categoryId, fieldId);
-      setCategories(categories.map(cat => {
-        if (cat._id === categoryId) {
-          return { ...cat, fields: cat.fields.filter(f => f._id !== fieldId) };
-        }
-        return cat;
-      }));
-      toast.success('Field deleted successfully');
-    } catch (error) {
-      toast.error('Failed to delete field');
-    }
-  };
-
-  const handleSubmitField = async (categoryId, data, fieldId) => {
-    try {
-      const payload = { ...data };
-
-      const res = fieldId
-        ? await employeeFieldApi.updateField(categoryId, fieldId, payload)
-        : await employeeFieldApi.addField(categoryId, payload);
-
-      const updatedCategory = res.data || res;
-
-      setCategories(categories.map(cat => {
-        if (cat._id === categoryId) {
-          // Backend returns the full category on field add/update
-          return updatedCategory;
-        }
-        return cat;
-      }));
-
-      setShowFieldForm(false);
-      setEditingField(null);
-      setSelectedCategory(null);
-      toast.success(`Field ${fieldId ? 'updated' : 'created'} successfully`);
-    } catch (error) {
-      toast.error(error.message || `Failed to ${fieldId ? 'update' : 'create'} field`);
-    }
+    openBuilder(categories.find(c => c._id === categoryId), 'edit');
   };
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">Employee Field Management</h1>
-        <button
-          onClick={handleAddCategory}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
+        <Button onClick={handleAddCategory}>
+          <Plus className="h-4 w-4 mr-2" />
           Add Category
-        </button>
+        </Button>
       </div>
 
-      {showCategoryForm && (
+      {/* Remove standalone forms to consolidate editing inside the builder */}
+      {/* {showCategoryForm && (
         <FieldCategoryForm
           category={editingCategory}
           onSubmit={handleSubmitCategory}
           onCancel={() => setShowCategoryForm(false)}
         />
-      )}
+      )} */}
 
-      {showFieldForm && selectedCategory && (
+      {/* {showFieldForm && selectedCategory && (
         <CustomFieldForm
           field={editingField}
           categoryId={selectedCategory._id}
           onSubmit={handleSubmitField}
           onCancel={() => setShowFieldForm(false)}
         />
-      )}
+      )} */}
 
       <div className="space-y-6">
         {categories.map(category => (
           <div key={category._id} className="bg-white p-4 rounded-lg shadow">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold">{category.name}</h2>
                 {category.description && (
                   <p className="text-sm text-gray-600">{category.description}</p>
                 )}
               </div>
-              <div className="space-x-2">
-                <button
-                  onClick={() => handleEditCategory(category)}
-                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
-                >
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => handleEditCategory(category)}>
                   Edit Category
-                </button>
-                <button
-                  onClick={() => handleDeleteCategory(category._id)}
-                  className="px-3 py-1 border border-red-300 text-red-600 rounded hover:bg-red-50"
-                >
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => handleDeleteCategory(category)}>
                   Delete Category
-                </button>
-                <button
-                  onClick={() => handleAddField(category)}
-                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                >
+                </Button>
+                <Button size="sm" onClick={() => handleAddField(category)}>
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Field
-                </button>
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => openBuilder(category, 'edit')}>
+                  <Wrench className="h-4 w-4 mr-2" />
+                  Design with Builder
+                </Button>
               </div>
             </div>
 
@@ -198,18 +147,34 @@ const EmployeeFieldManagement = () => {
                       <td className="px-4 py-2">{field.type}</td>
                       <td className="px-4 py-2">{field.validation?.required ? 'Yes' : 'No'}</td>
                       <td className="px-4 py-2 text-right space-x-2">
-                        <button
-                          onClick={() => handleEditField(category, field)}
-                          className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteField(category._id, field._id)}
-                          className="px-3 py-1 border border-red-300 text-red-600 rounded hover:bg-red-50"
-                        >
-                          Delete
-                        </button>
+                        {/* <Button variant="ghost" size="icon" onClick={() => handleEditField(category, field)} aria-label="Edit field">
+                          <Pencil className="h-4 w-4" />
+                        </Button> */}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label="Delete field" className="text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete field "{field.label || field.name}"?</AlertDialogTitle>
+                              <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={async () => {
+                                try {
+                                  await employeeFieldApi.deleteField(category._id, field._id);
+                                  toast.success('Field deleted');
+                                  await refreshCategories();
+                                } catch (e) {
+                                  toast.error(e?.response?.data?.message || e?.message || 'Failed to delete field');
+                                }
+                              }}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </td>
                     </tr>
                   )) : (
@@ -223,6 +188,81 @@ const EmployeeFieldManagement = () => {
           </div>
         ))}
       </div>
+
+      <Dialog open={showFieldForm} onOpenChange={setShowFieldForm}>
+        <DialogContent className="sm:max-w-5xl w-[92vw] max-h-[88vh] overflow-y-auto">
+          <DialogHeader className="sticky top-0 bg-background z-1000 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl">Edit Field: {editingField?.label || editingField?.name}</DialogTitle>
+                <p className="text-sm text-muted-foreground mt-1">Category: {selectedCategory?.name}</p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Delete field" className="text-muted-foreground hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete field "{editingField?.label || editingField?.name}"?</AlertDialogTitle>
+                    <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={async () => {
+                      try {
+                        await employeeFieldApi.deleteField(selectedCategory?._id, editingField?._id);
+                        toast.success('Field deleted');
+                        setShowFieldForm(false);
+                        await refreshCategories();
+                      } catch (e) {
+                        toast.error(e?.response?.data?.message || e?.message || 'Failed to delete field');
+                      }
+                    }}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </DialogHeader>
+
+          <CustomFieldForm
+            field={editingField}
+            categoryId={selectedCategory?._id}
+            hideActions={true}
+            formId="edit-field-form"
+            className="mt-2"
+            onSubmit={async (categoryId, data, fieldId) => {
+              try {
+                await employeeFieldApi.updateField(categoryId, fieldId, data);
+                setShowFieldForm(false);
+                await refreshCategories();
+              } catch (e) {
+                toast.error(e?.response?.data?.message || e?.message || 'Failed to update field');
+              }
+            }}
+            onCancel={() => setShowFieldForm(false)}
+          />
+
+          <DialogFooter className="sticky bottom-0 bg-background pt-4 mt-6 border-t">
+            <Button variant="outline" onClick={() => setShowFieldForm(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => document.getElementById('edit-field-form')?.requestSubmit()}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <FieldBuilderDialog
+        open={showBuilder}
+        onOpenChange={(o) => { setShowBuilder(o); if (!o) refreshCategories(); }}
+        category={builderCategory}
+        intent={builderIntent}
+        onCategoryDeleted={async () => { await refreshCategories(); }}
+        onFieldsSaved={async () => { await refreshCategories(); }}
+      />
     </div>
   );
 };

@@ -18,6 +18,9 @@ export const initializeTenantAuth = createAsyncThunk(
       const response = await apiClient.get('/subdomain/auth/profile');
       const freshUser = response.data.data;
       
+      console.log('initializeTenantAuth: Fresh user data:', freshUser);
+      console.log('initializeTenantAuth: User organization:', freshUser?.organization);
+      
       // Update localStorage with fresh user data
       localStorage.setItem('tenantUser', JSON.stringify(freshUser));
       

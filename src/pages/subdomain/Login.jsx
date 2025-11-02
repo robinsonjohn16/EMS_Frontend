@@ -10,6 +10,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '../../components/ui/c
 import { toast } from 'sonner';
 import { loginTenantUser, clearTenantError } from '../../store/slices/tenantAuthSlice';
 import { fetchOrganizationBySubdomain, clearSubdomainError } from '../../store/slices/subdomainSlice';
+import { getAssetUrl } from '../../lib/assets';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -66,21 +67,16 @@ const Login = () => {
   }, [isAuthenticated, navigate]);
 
   const onSubmit = async (data) => {
-    setLoading(true);
     try {
-      const result = await dispatch(loginTenantUser(data)).unwrap();
-      toast.success('Logged in successfully');
-      
-      // Check if there's a saved path to redirect to
-      const redirectPath = localStorage.getItem('redirectPath');
-      if (redirectPath) {
-        localStorage.removeItem('redirectPath'); // Clear it after use
-        navigate(redirectPath);
+      setLoading(true);
+      const resultAction = await dispatch(loginTenantUser(data));
+      if (loginTenantUser.fulfilled.match(resultAction)) {
+        toast.success('Logged in successfully');
       } else {
-        navigate('/dashboard');
+        toast.error(resultAction.payload || 'Login failed');
       }
-    } catch (error) {
-      toast.error(error || 'Login failed');
+    } catch (err) {
+      toast.error(err?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -93,9 +89,9 @@ const Login = () => {
           <CardHeader className="text-center">
             {organization.logo && (
               <img 
-                src={organization.logo} 
-                alt={organization.name} 
-                className="h-16 mx-auto mb-4"
+                src={getAssetUrl(organization.logo)} 
+                alt={organization.name}
+                className="h-16 mx-auto mb-4 object-contain"
               />
             )}
             <h2 className="text-2xl font-bold">{organization.name}</h2>
@@ -136,17 +132,21 @@ const Login = () => {
                 <p className="text-red-500 text-xs">{errors.password.message}</p>
               )}
             </div>
-            
+
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
         </CardContent>
-        
-        <CardFooter className="flex justify-center">
-          <p className="text-sm text-gray-500">
-            Forgot password? Contact your administrator
-          </p>
+
+        <CardFooter className="text-center text-xs text-gray-500">
+          {organization?.website ? (
+            <a href={organization.website} target="_blank" rel="noreferrer" className="hover:underline">
+              {organization.website}
+            </a>
+          ) : (
+            <span>Welcome to {organization?.name || 'your organization'}</span>
+          )}
         </CardFooter>
       </Card>
     </div>

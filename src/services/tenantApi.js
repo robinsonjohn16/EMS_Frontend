@@ -33,7 +33,19 @@ export const tenantAuthApi = {
 
   // Update tenant user profile
   updateProfile: async (profileData) => {
-    const response = await api.put('/tenant/auth/profile', profileData);
+    let response;
+    
+    // Check if profileData is FormData (file upload)
+    if (profileData instanceof FormData) {
+      response = await api.put('/tenant/auth/profile', profileData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } else {
+      response = await api.put('/tenant/auth/profile', profileData);
+    }
+    
     return response.data;
   },
 
@@ -138,6 +150,19 @@ export const tenantOrganizationApi = {
     return response.data;
   },
 
+  // Update organization logo (admin only)
+  updateLogo: async (organizationId, logoFile) => {
+    const formData = new FormData();
+    formData.append('logo', logoFile);
+    
+    const response = await api.put(`/tenant/organization/${organizationId}/logo`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
   // Get organization statistics
   getStats: async (organizationId) => {
     const response = await api.get(`/tenant/organization/${organizationId}/stats`);
@@ -229,9 +254,38 @@ export const tenantUtils = {
   }
 };
 
+export const subdomainUserApi = {
+  getUsers: async (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    const response = await api.get(`/subdomain/users?${queryParams}`);
+    return response.data;
+  },
+  getUserById: async (userId) => {
+    const response = await api.get(`/subdomain/users/${userId}`);
+    return response.data;
+  },
+  createUser: async (userData) => {
+    const response = await api.post('/subdomain/users', userData);
+    return response.data;
+  },
+  updateUser: async (userId, userData) => {
+    const response = await api.put(`/subdomain/users/${userId}`, userData);
+    return response.data;
+  },
+  deleteUser: async (userId) => {
+    const response = await api.delete(`/subdomain/users/${userId}`);
+    return response.data;
+  },
+  toggleUserStatus: async (userId, isActive) => {
+    const response = await api.patch(`/subdomain/users/${userId}/status`, { isActive });
+    return response.data;
+  }
+};
+
 export default {
   auth: tenantAuthApi,
   users: tenantUserApi,
+  subdomainUsers: subdomainUserApi,
   organization: tenantOrganizationApi,
   utils: tenantUtils
 };

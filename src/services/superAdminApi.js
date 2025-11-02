@@ -1,4 +1,5 @@
-import api from '../lib/api';
+// import api from '../lib/api';
+import api from '../lib/superAdminApiClient';
 
 // Super Admin Tenant User Management API
 export const superAdminTenantUserApi = {

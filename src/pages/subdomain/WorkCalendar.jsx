@@ -148,45 +148,120 @@ const WorkCalendar = () => {
         employeeId: employeeId || undefined,
       });
 
+      // Use organization timezone to normalize date-only strings
+      const tz = (data?.workingSettings?.timezone || data?.meta?.timezone || meta?.timezone || 'UTC');
       const toDateOnly = (v) => {
         if (!v) return undefined;
-        const formatLocalDate = (date) => {
-          const y = date.getFullYear();
-          const m = String(date.getMonth() + 1).padStart(2, '0');
-          const d = String(date.getDate()).padStart(2, '0');
-          return `${y}-${m}-${d}`;
-        };
+        // Preserve pure YMD strings; parse ISO strings with timezone
         if (typeof v === 'string') {
-          const m = v.match(/^\d{4}-\d{2}-\d{2}/);
-          return m ? m[0] : formatLocalDate(new Date(v));
+          if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+          // fall through to Date parsing for ISO or other formats
         }
+        const raw = (typeof v === 'object' && v && '$date' in v) ? v.$date : v;
+        const dt = new Date(raw);
         try {
-          return formatLocalDate(new Date(v));
+          return new Intl.DateTimeFormat('en-CA', {
+            timeZone: tz,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).format(dt);
         } catch {
-          return undefined;
+          const y = dt.getFullYear();
+          const m = String(dt.getMonth() + 1).padStart(2, '0');
+          const d = String(dt.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
         }
       };
 
-      const holidayEvents = (data.events?.holidays || []).map(h => ({
-        id: `holiday-${h.id}`,
-        title: h.title,
-        start: toDateOnly(h.date || h.start),
-        allDay: true,
-        backgroundColor: '#fef3c7',
-        borderColor: '#f59e0b',
-        textColor: '#0f172a'
-      })).filter(e => !!e.start);
+      // Helper function to safely extract date from MongoDB format
+      const extractDate = (dateValue) => {
+        if (!dateValue) return undefined;
+        
+        // Handle MongoDB date objects in the format {"$date":"2025-12-31T18:30:00Z"}
+        if (typeof dateValue === 'object' && dateValue !== null) {
+          if ('$date' in dateValue) {
+            return dateValue.$date;
+          }
+        }
+        
+        return dateValue;
+      };
+      
+      // Helper function to create Date objects that respect the date part only
+      const createDateFromString = (dateStr) => {
+        if (!dateStr) return undefined;
+        
+        // If it's already a pure YYYY-MM-DD string, use it directly
+        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          return new Date(dateStr + 'T00:00:00Z');
+        }
+        
+        // Otherwise parse it and extract just the date part in UTC
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return undefined;
+        
+        // Create a new date with just the date part in UTC
+        return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+      };
 
-      const leaveEvents = (data.events?.leaves || []).map(l => ({
-        id: `leave-${l.id}`,
-        title: l.title,
-        start: l.start,
-        end: l.end,
-        allDay: true,
-        backgroundColor: l.status === 'approved' ? '#dcfce7' : l.status === 'pending' ? '#fef9c3' : '#fee2e2',
-        borderColor: l.status === 'approved' ? '#22c55e' : l.status === 'pending' ? '#eab308' : '#ef4444',
-        textColor: '#0f172a'
-      }));
+      const holidayEvents = (data.events?.holidays || []).map(h => {
+        // Get the date value, handling MongoDB format
+        const rawDate = extractDate(h.occurrenceDate || h.date || h.start);
+        
+        // Create a proper Date object that respects just the date part
+        const startDate = createDateFromString(rawDate);
+        
+        // For debugging
+        console.log('Holiday raw date:', rawDate, 'Parsed date:', startDate);
+        
+        return {
+          id: `holiday-${h.id}`,
+          title: h.title,
+          start: startDate,
+          allDay: true,
+          backgroundColor: '#fef3c7',
+          borderColor: '#f59e0b',
+          textColor: '#0f172a'
+        };
+      }).filter(e => !!e.start);
+
+      const leaveEvents = (data.events?.leaves || []).map(l => {
+        // Get the date values, handling MongoDB format
+        const rawStartDate = extractDate(l.start);
+        const rawEndDate = extractDate(l.end);
+        
+        // Create proper Date objects that respect just the date part
+        const startDate = createDateFromString(rawStartDate);
+        
+        // For debugging
+        console.log('Leave raw start date:', rawStartDate, 'Parsed start date:', startDate);
+        
+        // Handle end date - if it exists
+        let endDate;
+        if (rawEndDate) {
+          endDate = createDateFromString(rawEndDate);
+          // For all-day events, FullCalendar requires exclusive end date (day after)
+          if (endDate) {
+            endDate = new Date(endDate);
+            endDate.setUTCDate(endDate.getUTCDate() + 1);
+          }
+          
+          // For debugging
+          console.log('Leave raw end date:', rawEndDate, 'Parsed end date:', endDate);
+        }
+        
+        return {
+          id: `leave-${l.id}`,
+          title: l.title,
+          start: startDate,
+          end: endDate,
+          allDay: true,
+          backgroundColor: l.status === 'approved' ? '#dcfce7' : l.status === 'pending' ? '#fef9c3' : '#fee2e2',
+          borderColor: l.status === 'approved' ? '#22c55e' : l.status === 'pending' ? '#eab308' : '#ef4444',
+          textColor: '#0f172a'
+        };
+      }).filter(e => !!e.start);
 
       const settings = data.workingSettings || null;
       setWorkingSettings(settings);
@@ -377,6 +452,13 @@ const WorkCalendar = () => {
         const org = cfg?.leavePolicy || null;
         setOrgPolicy(org);
         setEffectivePolicy((prev) => prev || org); // seed until user override fetched
+
+        // Also seed timezone from attendance config if available
+        const tz = cfg?.attendanceConfig?.timezone || cfg?.timezone || null;
+        if (tz) {
+          setMeta((prev) => ({ ...prev, timezone: tz }));
+          setWorkingSettings((prev) => ({ ...(prev || {}), timezone: prev?.timezone || tz }));
+        }
       } catch (err) {
         // no-op
       }
@@ -514,6 +596,14 @@ const WorkCalendar = () => {
               height={600}
               events={events}
               datesSet={onDatesSet}
+              timeZone="UTC"
+              displayEventTime={false}
+              eventTimeFormat={{
+                hour: '2-digit',
+                minute: '2-digit',
+                meridiem: false,
+                hour12: false
+              }}
               headerToolbar={{ left: 'prev,next today', center: 'title', right: '' }}
             />
             {loading && (
@@ -613,7 +703,7 @@ const WorkCalendar = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Leave Policy ({selectedEmployeeId ? 'User' : 'Organization'})</CardTitle>
           <CardDescription>{selectedEmployeeId ? 'Overrides for selected user' : 'HR-configured annual limits'}</CardDescription>
@@ -640,7 +730,7 @@ const WorkCalendar = () => {
             <div className="text-sm text-muted-foreground">Loading policy...</div>
           )}
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 };

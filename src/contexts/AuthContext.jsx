@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { authApi } from '../lib/api';
+import { superAdminAuthApi as authApi } from '../lib/superAdminAuthApi';
 
 // Initial state
 const initialState = {

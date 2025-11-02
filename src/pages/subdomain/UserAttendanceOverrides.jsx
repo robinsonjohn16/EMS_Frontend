@@ -10,6 +10,7 @@ import { Switch } from '../../components/ui/switch';
 import { toast } from 'sonner';
 import { employeeDetailsApi } from '../../services/employeeApi';
 import { userAttendanceConfigApi } from '../../services/userAttendanceConfigApi';
+import GeofenceMap from '../../components/geo/GeofenceMap';
 
 const UserAttendanceOverrides = () => {
   const [users, setUsers] = useState([]);
@@ -349,38 +350,46 @@ const UserAttendanceOverrides = () => {
                       <Label>Radius (meters)</Label>
                       <Input type="number" min="10" max="10000" value={userOverride.geofencing.radiusMeters} onChange={(e)=>setUserGeofence('radiusMeters',Number(e.target.value))} />
                     </div>
+
+                    {/* Map for user-specific geofence (single marker) */}
+                    <GeofenceMap
+                      radiusMeters={userOverride.geofencing.radiusMeters}
+                      locations={userOverride.geofencing.locations || []}
+                      onAddLocation={(lat, lng, address) => {
+                        setUserOverride((prev) => ({
+                          ...prev,
+                          geofencing: {
+                            ...prev.geofencing,
+                            locations: [{ lat, lng, address }],
+                          },
+                        }));
+                      }}
+                      onMoveLocation={(idx, lat, lng) => {
+                        setUserOverride((prev) => ({
+                          ...prev,
+                          geofencing: {
+                            ...prev.geofencing,
+                            locations: [(prev.geofencing.locations || [])[0] ? { ...(prev.geofencing.locations[0]), lat, lng } : { lat, lng }],
+                          },
+                        }));
+                      }}
+                    />
+
+                    {/* Summary list and remove */}
                     <div>
                       <Label>Locations</Label>
+                      {(userOverride.geofencing.locations || []).length === 0 && (
+                        <p className="text-sm text-muted-foreground">No location set.</p>
+                      )}
                       {(userOverride.geofencing.locations || []).map((loc, idx) => (
-                        <div key={idx} className="grid grid-cols-3 gap-2 mb-2">
-                          <Input value={loc.address} onChange={(e)=>{
-                            const v = e.target.value; setUserOverride(prev => ({...prev, geofencing: {...prev.geofencing, locations: prev.geofencing.locations.map((l,i)=> i===idx ? {...l, address: v} : l)}}))
-                          }} placeholder="Address label" />
-                          <Input value={loc.lat} onChange={(e)=>{
-                            const v = e.target.value; setUserOverride(prev => ({...prev, geofencing: {...prev.geofencing, locations: prev.geofencing.locations.map((l,i)=> i===idx ? {...l, lat: v} : l)}}))
-                          }} placeholder="Latitude" />
-                          <Input value={loc.lng} onChange={(e)=>{
-                            const v = e.target.value; setUserOverride(prev => ({...prev, geofencing: {...prev.geofencing, locations: prev.geofencing.locations.map((l,i)=> i===idx ? {...l, lng: v} : l)}}))
-                          }} placeholder="Longitude" />
-                          <Button variant="destructive" onClick={()=>removeUserLocation(idx)}>Remove</Button>
+                        <div key={idx} className="flex items-center justify-between border rounded-md p-2 mt-2">
+                          <div>
+                            <p className="text-sm font-medium">{loc.lat}, {loc.lng}</p>
+                            {loc.address && (<p className="text-xs text-muted-foreground">{loc.address}</p>)}
+                          </div>
+                          <Button variant="destructive" size="sm" onClick={()=>removeUserLocation(idx)}>Remove</Button>
                         </div>
                       ))}
-                      <div className="grid grid-cols-3 gap-2">
-                        <Input value={newUserLocation.address} onChange={(e)=>setNewUserLocation(prev=>({...prev, address: e.target.value}))} placeholder="Address label" />
-                        <Input value={newUserLocation.lat} onChange={(e)=>setNewUserLocation(prev=>({...prev, lat: e.target.value}))} placeholder="Latitude" />
-                        <Input value={newUserLocation.lng} onChange={(e)=>setNewUserLocation(prev=>({...prev, lng: e.target.value}))} placeholder="Longitude" />
-                        <Button onClick={()=>{
-                          if(!newUserLocation.lat || !newUserLocation.lng){ toast.error('Provide lat & lng'); return; }
-                          setUserOverride(prev=>({...prev, geofencing: {...prev.geofencing, locations: [...(prev.geofencing.locations||[]), { ...newUserLocation }]}}));
-                          setNewUserLocation({ lat: '', lng: '', address: '' });
-                        }}>Add Location</Button>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <Button onClick={handleSaveUserOverride} disabled={!selectedUserId || saving}>
-                        {saving ? 'Saving...' : 'Save Settings'}
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>

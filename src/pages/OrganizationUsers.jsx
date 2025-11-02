@@ -285,7 +285,7 @@ const OrganizationUsers = () => {
           <div className="flex items-center space-x-4">
             <Button variant="ghost" onClick={() => navigate('/dashboard/organizations')} className="hover:bg-gray-100">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Organizations
+              Back
             </Button>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
@@ -465,7 +465,7 @@ const OrganizationUsers = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
+          <Card className='p-0'>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -476,7 +476,7 @@ const OrganizationUsers = () => {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className='p-0'>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -489,7 +489,7 @@ const OrganizationUsers = () => {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className='p-0'>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -502,7 +502,7 @@ const OrganizationUsers = () => {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className='p-0'>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>

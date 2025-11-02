@@ -108,8 +108,12 @@ const HRLeaveApproval = () => {
   const isYMD = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
   const parseYMD = (v) => {
     try {
+      if (!v) return null;
+      if (typeof v === 'object' && v && '$date' in v) {
+        return new Date(v.$date);
+      }
       if (isYMD(v)) {
-        const [y, m, d] = v.split('-').map(Number);
+        const [y, m, d] = String(v).split('-').map(Number);
         return new Date(y, m - 1, d);
       }
       return new Date(v);
@@ -119,7 +123,12 @@ const HRLeaveApproval = () => {
   };
   const fmtLocalDate = (v) => {
     const d = parseYMD(v);
-    return d && !isNaN(d) ? d.toLocaleDateString() : String(v);
+    const tz = attendanceSettings?.timezone || 'UTC';
+    if (!d || isNaN(d)) return String(v ?? '');
+    // Use local YMD formatting to avoid timezone off-by-one issues
+    const ymd = toLocalYMD(d, tz); // YYYY-MM-DD
+    const [y, m, dd] = ymd.split('-');
+    return `${dd}/${m}/${y}`;
   };
   const daysInclusive = (start, end) => {
     const s = parseYMD(start);
@@ -186,6 +195,18 @@ const HRLeaveApproval = () => {
     setSelectedLeave(leave);
     await loadQuotaForEmployee(leave?.employeeId);
     setApprovePayStatus('paid');
+
+    // Ensure we have organization timezone before building per-day details
+    let tz = attendanceSettings?.timezone || 'UTC';
+    if (!attendanceSettings) {
+      try {
+        const cfgResp = await attendanceConfigApi.get();
+        const cfg = cfgResp?.data?.attendanceConfig || cfgResp?.attendanceConfig || cfgResp || null;
+        setAttendanceSettings(cfg);
+        tz = cfg?.timezone || tz;
+      } catch {}
+    }
+
     const s = parseYMD(leave.startDate);
     const e = parseYMD(leave.endDate);
     const diff = daysInclusive(leave.startDate, leave.endDate);
@@ -197,9 +218,10 @@ const HRLeaveApproval = () => {
     const details = [];
     const cur = new Date(s.getFullYear(), s.getMonth(), s.getDate());
     for (let i = 0; i < diff; i++) {
-      const ymd = new Intl.DateTimeFormat('en-CA').format(cur);
+      const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(cur);
       const req = reqDetails.find((d) => {
-        const dStr = typeof d.date === 'string' ? d.date : new Intl.DateTimeFormat('en-CA').format(parseYMD(d.date));
+        const base = typeof d.date === 'string' ? d.date : parseYMD(d.date);
+        const dStr = typeof base === 'string' ? base : new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(base);
         return dStr === ymd;
       });
       const isHalf = req ? Boolean(req.isHalfDay) : (leave.isHalfDay && s.getTime() === e.getTime() && i === 0);
@@ -519,7 +541,7 @@ const HRLeaveApproval = () => {
                           updated[idx].approved = checked;
                           setApprovedDaysDetails(updated);
                         }}
-                        disabled={disabled}
+                        // disabled={disabled}
                       />
                       <div>
                         <div className="font-medium">{fmtLocalDate(day.date)}</div>

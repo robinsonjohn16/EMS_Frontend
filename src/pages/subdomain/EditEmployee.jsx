@@ -62,8 +62,22 @@ const EditEmployee = () => {
         
         // Fetch employee data if ID is provided
         if (id) {
-          const employeeResponse = await employeeApi.details.getEmployeeDetails(id);
-          const employeeData = employeeResponse.data.employee;
+          // Try to get employee by user ID first (for /employee-details/:userId route)
+          let employeeResponse;
+          let employeeData;
+          
+          try {
+            employeeResponse = await employeeApi.details.getEmployeeDetailsByUserId(id);
+            employeeData = employeeResponse.data.employee;
+          } catch (userIdError) {
+            // If user ID fails, try employee ID (for /edit-employee/:employeeId route)
+            try {
+              employeeResponse = await employeeApi.details.getEmployeeDetails(id);
+              employeeData = employeeResponse.data.employee;
+            } catch (employeeIdError) {
+              throw new Error('Employee not found with the provided ID');
+            }
+          }
           
           setEmployee(employeeData);
           

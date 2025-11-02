@@ -16,6 +16,7 @@ import { Link } from 'react-router-dom';
 import holidayApi from '../../services/holidayApi';
 import { employeeDetailsApi } from '../../services/employeeApi';
 import { userAttendanceConfigApi } from '../../services/userAttendanceConfigApi'
+import GeofenceMap from '../../components/geo/GeofenceMap';
 
 const dayNames = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 
@@ -398,9 +399,15 @@ const AttendanceConfig = () => {
     }));
   };
 
-
-
-
+  const updateLocation = (idx, lat, lng) => {
+    setConfig((prev) => ({
+      ...prev,
+      geofencing: {
+        ...prev.geofencing,
+        locations: (prev.geofencing?.locations || []).map((l, i) => i === idx ? { ...l, lat, lng } : l),
+      },
+    }));
+  };
 
   const addLocation = () => {
     const lat = parseFloat(newLocation.lat);
@@ -488,8 +495,8 @@ const AttendanceConfig = () => {
                 ))}
               </div>
               <div className="flex gap-3 mt-4">
-                <Button variant="outline" onClick={applySaturdayRuleToOthers}>Apply Saturday rule to all days</Button>
-                <Button variant="outline" onClick={syncWorkingDaysWithRules}>Sync working days with rules</Button>
+                {/* <Button variant="outline" onClick={applySaturdayRuleToOthers}>Apply Saturday rule to all days</Button> */}
+                {/* <Button variant="outline" onClick={syncWorkingDaysWithRules}>Sync working days with rules</Button> */}
               </div>
             </div>
           </div>
@@ -518,7 +525,7 @@ const AttendanceConfig = () => {
               </div>
               <div>
                 <Label>Days per year</Label>
-                <Input type="number" min={0} value={config.leavePolicy?.sick?.perYearDays ?? 0} onChange={(e)=>setLeave('sick','perYearDays',Number(e.target.value))} />
+                <Input className="mt-2" type="number" min={0} value={config.leavePolicy?.sick?.perYearDays ?? 0} onChange={(e)=>setLeave('sick','perYearDays',Number(e.target.value))} />
               </div>
             </div>
             {/* Paid Leave */}
@@ -532,7 +539,7 @@ const AttendanceConfig = () => {
               </div>
               <div>
                 <Label>Days per year</Label>
-                <Input type="number" min={0} value={config.leavePolicy?.paid?.perYearDays ?? 0} onChange={(e)=>setLeave('paid','perYearDays',Number(e.target.value))} />
+                <Input className="mt-2" type="number" min={0} value={config.leavePolicy?.paid?.perYearDays ?? 0} onChange={(e)=>setLeave('paid','perYearDays',Number(e.target.value))} />
               </div>
             </div>
           </div>
@@ -591,15 +598,31 @@ const AttendanceConfig = () => {
               <Label>Radius (meters)</Label>
               <Input type="number" min={10} max={10000} value={config.geofencing?.radiusMeters ?? 100} onChange={(e)=>setGeofence('radiusMeters',Number(e.target.value))} />
             </div>
-            <div className="space-y-2">
-              <Label>Add location</Label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <Input placeholder="Latitude" value={newLocation.lat} onChange={(e)=>setNewLocation((p)=>({...p, lat: e.target.value}))} />
-                <Input placeholder="Longitude" value={newLocation.lng} onChange={(e)=>setNewLocation((p)=>({...p, lng: e.target.value}))} />
-                <Input placeholder="Address (optional)" value={newLocation.address} onChange={(e)=>setNewLocation((p)=>({...p, address: e.target.value}))} />
-              </div>
-              <Button variant="outline" className="mt-2" onClick={addLocation}>Add Location</Button>
-            </div>
+
+            {/* Map with pointer and geocoding */}
+            <GeofenceMap
+              radiusMeters={config.geofencing?.radiusMeters ?? 100}
+              locations={config.geofencing?.locations || []}
+              onAddLocation={(lat, lng, address) => {
+                setConfig((prev) => ({
+                  ...prev,
+                  geofencing: {
+                    ...prev.geofencing,
+                    // enforce single marker
+                    locations: [{ lat, lng, address }],
+                  },
+                }));
+              }}
+              onMoveLocation={(idx, lat, lng) => {
+                setConfig((prev) => ({
+                  ...prev,
+                  geofencing: {
+                    ...prev.geofencing,
+                    locations: [(prev.geofencing?.locations || [])[0] ? { ...(prev.geofencing.locations[0]), lat, lng } : { lat, lng }],
+                  },
+                }));
+              }}
+            />
 
             <div className="space-y-2">
               <Label>Locations</Label>
